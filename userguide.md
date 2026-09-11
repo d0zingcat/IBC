@@ -517,10 +517,14 @@ Once it's registered, every time you login to TWS or Gateway (including when
 IBC does it for you) you'll receive an alert on your device. When you then
 acknowledge the alert, your login will complete.
 
-Note that IBC cannot itself assist in the process, so you'll have to actually
-perform the necessary actions on your device yourself, but it's fairly
-convenient because you don't need to be anywhere near your computer running
-TWS, which is helpful if you've used some automated mechanism to start TWS.
+By default IBC cannot itself assist in the process, so you'll have to actually
+perform the necessary actions on your device yourself. The Goldmachine-maintained
+fork optionally supports an RFC 6238 TOTP device: set `SecondFactorDevice` to
+the exact `Mobile Authenticator app` label when device selection is shown and
+provide the Base32 seed in the process
+environment as `IBC_TOTP_SECRET`. IBC enters the code and presses `OK`; it never
+logs the seed or generated code. When `IBC_TOTP_SECRET` is absent, IBC retains
+the original manual second-factor behaviour.
 
 However, if you fail to respond to the alert within a fixed period (currently
 3 minutes), you will not then be able to complete your login without manual
