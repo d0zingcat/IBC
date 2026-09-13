@@ -24,6 +24,7 @@ import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JList;
 import javax.swing.ListModel;
+import javax.swing.JTextField;
 
 public class SecondFactorAuthenticationDialogHandler implements WindowHandler {
     private SecondFactorAuthenticationDialogHandler() {};
@@ -53,6 +54,8 @@ public class SecondFactorAuthenticationDialogHandler implements WindowHandler {
                 doReadonlyLogin(window);
             } else if (secondFactorDeviceSelectionRequired(window)) {
                 selectSecondFactorDevice(window);
+            } else if (totpEnabled(window)) {
+                submitTotp(window);
             } else {
                 LoginManager.loginManager().setLoginState(LoginManager.LoginState.TWO_FA_IN_PROGRESS);
             }
@@ -79,6 +82,42 @@ public class SecondFactorAuthenticationDialogHandler implements WindowHandler {
             Utils.logToConsole("initiating read-only login.");
         } else {
             Utils.logError("could not initiate read-only login.");
+        }
+    }
+
+    private boolean totpEnabled(Window window) {
+        String secret = System.getenv("IBC_TOTP_SECRET");
+        return secret != null && !secret.trim().isEmpty()
+            && isTotpPrompt(window);
+    }
+
+    /**
+     * The community ibc-totp fork identifies the post-selection dialog by these
+     * labels. Do not submit a TOTP merely because any second-factor dialog has a
+     * text field: that could be an IB Key or another authentication method.
+     */
+    private boolean isTotpPrompt(Window window) {
+        return SwingUtils.findLabel(window, "Enter Mobile Authenticator") != null
+            || SwingUtils.findLabel(window, "Authenticator app code") != null;
+    }
+
+    private void submitTotp(Window window) {
+        try {
+            JTextField codeField = SwingUtils.findTextField(window, 0);
+            if (codeField == null) {
+                LoginManager.loginManager().setLoginState(LoginManager.LoginState.TWO_FA_IN_PROGRESS);
+                return;
+            }
+            codeField.setText(Totp.generate(System.getenv("IBC_TOTP_SECRET")));
+            if (!SwingUtils.clickButton(window, "OK")) {
+                Utils.logError("could not submit TOTP code: OK button not found");
+                LoginManager.loginManager().setLoginState(LoginManager.LoginState.TWO_FA_IN_PROGRESS);
+                return;
+            }
+            Utils.logToConsole("TOTP code submitted");
+        } catch (RuntimeException error) {
+            Utils.logError("could not generate TOTP code: " + error.getMessage());
+            LoginManager.loginManager().setLoginState(LoginManager.LoginState.TWO_FA_IN_PROGRESS);
         }
     }
     
